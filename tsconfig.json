@@ -4,8 +4,6 @@
       "ESNext",
       "DOM"
     ],
-    "target": "ESNext",
-    "skipDefaultLibCheck": false,
-    "skipLibCheck": false
+    "target": "ESNext"
   }
 }
