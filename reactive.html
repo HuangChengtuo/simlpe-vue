@@ -1,0 +1,95 @@
+<script>
+  let activeEffect = null
+
+  /**
+   * ts 没法在同一 namespace 重复声明 class，
+   * export 需要设置 script 设置 type="module" 属性才不会报错
+   * type="module" 会跨域，还要起本地 node 服务，麻烦
+   * 用回 js 了
+   */
+  class Dep {
+    subscribers = new Set()
+
+    depend() {
+      if (activeEffect) {
+        this.subscribers.add(activeEffect)
+      }
+    }
+
+    notify() {
+      this.subscribers.forEach(effect => {
+        effect()
+      })
+    }
+  }
+
+  function watchEffect(effect) {
+    activeEffect = effect
+    effect()
+    activeEffect = null
+  }
+
+  // let target can be auto garbage collected
+  const targetMap = new WeakMap()
+
+  function getDep(target, key) {
+    let depsMap = targetMap.get(target)
+    if (!depsMap) {
+      depsMap = new Map()
+      targetMap.set(target, depsMap)
+    }
+    let dep = depsMap.get(key)
+    // first time access key
+    if (!dep) {
+      dep = new Dep()
+      depsMap.set(key, dep)
+    }
+    return dep
+  }
+
+  const reactiveHandler = {
+    get(target, key, receiver) {
+      const dep = getDep(target, key)
+      dep.depend()
+      // make prototype work normally
+      return Reflect.get(target, key, receiver)
+    },
+    set(target, key, receiver) {
+      const dep = getDep(target, key)
+      const result = Reflect.set(target, key, receiver)
+      dep.notify()
+      return result
+    }
+  }
+
+  function reactive(raw) {
+    // Vue 3
+    return new Proxy(raw, reactiveHandler)
+
+    // in Vue 2, can't detect new prop
+    // Object.keys(raw).forEach(key => {
+    //   let value = raw[key]
+    //   const dep = new Dep()
+    //
+    //   Object.defineProperty(raw, key, {
+    //     get() {
+    //       dep.depend()
+    //       return value
+    //     },
+    //     set(newValue) {
+    //       value = newValue
+    //       dep.notify()
+    //     }
+    //   })
+    // })
+    // return raw
+  }
+
+  const state = reactive({ count: 0 })
+
+  watchEffect(() => {
+    console.log(state.count)
+  })
+
+  state.count++
+</script>
